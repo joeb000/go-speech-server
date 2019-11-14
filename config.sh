@@ -2,7 +2,8 @@
 echo "Downloading data model files to config directory..."
 curl -o models.tar -L https://github.com/mozilla/DeepSpeech/releases/download/v0.5.1/deepspeech-0.5.1-models.tar.gz
 tar xvfz models.tar
-mv deepspeech-0.5.1-models/* config/.
+
+mv deepspeech-0.5.1-models config
 rm -rf deepspeech-0.5.1-model*
 rm -rf models.tar
 
