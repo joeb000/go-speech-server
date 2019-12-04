@@ -3,42 +3,32 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/asticode/go-astideepspeech"
 	"html"
 	"log"
 	"net/http"
-	"os"
-
-	"github.com/asticode/go-astideepspeech"
-	"github.com/asticode/go-astilog"
 )
 
-var model = flag.String("model", "", "Path to the model (protocol buffer binary file)")
-var alphabet = flag.String("alphabet", "", "Path to the configuration file specifying the alphabet used by the network")
-var audio = flag.String("audio", "", "Path to the audio file to run (WAV format)")
-var lm = flag.String("lm", "", "Path to the language model binary file")
-var trie = flag.String("trie", "", "Path to the language model trie file created with native_client/generate_trie")
-var version = flag.Bool("version", false, "Print version and exits")
-var extended = flag.Bool("extended", false, "Use extended metadata")
+var configDir = flag.String("configDir", "", "Path to config directory for the DeepSpeech Model files")
+var model = flag.String("model", "output_graph.pbmm", "File name of the model (protocol buffer binary file)")
+var alphabet = flag.String("alphabet", "alphabet.txt", "File name of the configuration file specifying the alphabet used by the network")
+var lm = flag.String("lm", "lm.binary", "File name of the language model binary file")
+var trie = flag.String("trie", "trie", "File name of the language model trie file created with native_client/generate_trie")
+
+var runTime = flag.Int("rt", 0, "Length of time in seconds to listen for audio in before processing")
 
 var M *astideepspeech.Model
 
+func errCheck(err error) {
+
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
-	flag.Parse()
 
-	astilog.FlagInit()
-
-	if *version {
-		astideepspeech.PrintVersions()
-		return
-	}
-
-	if *model == "" || *alphabet == "" {
-		// In case of error print error and print usage
-		// This can also be done by passing -h or --help flags
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
-		flag.PrintDefaults()
-		return
-	}
+	configureFlags()
 
 	// Initialize DeepSpeech
 	M = astideepspeech.New(*model, nCep, nContext, *alphabet, beamWidth)
@@ -52,6 +42,8 @@ func main() {
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello, Firend ", html.EscapeString(r.URL.Path))
 	})
+
+	http.HandleFunc("/stream", socketHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
