@@ -26,22 +26,19 @@ import "C"
 // stackoverflow.com/questions/14094190/golang-function-similar-to-getchar
 
 import (
+	"flag"
 	"fmt"
+	"github.com/gordonklaus/portaudio"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/rand"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"time"
-"flag"
-	"github.com/gordonklaus/portaudio"
-	wave "github.com/zenwerk/go-wave"
 )
 
 var remoteHost = flag.String("host", "localhost:8080", "remote host")
-
 
 func errCheck(err error) {
 
@@ -64,16 +61,7 @@ func convertInt16ToByte(a []int16) []byte {
 func main() {
 	flag.Parse()
 
-
-	audioFileName := "outfile"
-
 	fmt.Println("Recording. Press ESC to quit.")
-
-	if !strings.HasSuffix(audioFileName, ".wav") {
-		audioFileName += ".wav"
-	}
-	waveFile, err := os.Create(audioFileName)
-	errCheck(err)
 
 	// www.people.csail.mit.edu/hubert/pyaudio/  - under the Record tab
 	inputChannels := 1
@@ -82,25 +70,12 @@ func main() {
 	framesPerBuffer := make([]int16, 64)
 
 	// init PortAudio
-
 	portaudio.Initialize()
 	//defer portaudio.Terminate()
 
 	stream, err := portaudio.OpenDefaultStream(inputChannels, outputChannels, float64(sampleRate), len(framesPerBuffer), framesPerBuffer)
 	errCheck(err)
 	//defer stream.Close()
-
-	// setup Wave file writer
-
-	param := wave.WriterParam{
-		Out:           waveFile,
-		Channel:       inputChannels,
-		SampleRate:    sampleRate,
-		BitsPerSample: 16, // if 16, change to WriteSample16()
-	}
-
-	waveWriter, err := wave.NewWriter(param)
-	errCheck(err)
 
 	// start websocket conn
 	u := url.URL{Scheme: "ws", Host: *remoteHost, Path: "/stream"}
@@ -112,7 +87,6 @@ func main() {
 	defer wscon.Close()
 
 	done := make(chan struct{})
-
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -140,22 +114,17 @@ func main() {
 		key := 0
 
 		for key != 27 {
-			// better to control
-			// how we close then relying on defer
 			key = int(C.getch())
 			if key == 27 {
 				break
 			}
 			fmt.Println()
-			fmt.Println("Cleaning up ...")
 		}
 
 		closeSocket = true
 		// close ws
 		err := wscon.WriteMessage(websocket.TextMessage, []byte("done"))
 		errCheck(err)
-
-
 
 	}()
 
@@ -178,21 +147,16 @@ func main() {
 
 		fmt.Printf("\rRecording is live now. Say something to your microphone! [%v]", ticker[rand.Intn(len(ticker)-1)])
 
-		// write to wave file
-		_, err := waveWriter.WriteSample16(framesPerBuffer) // WriteSample16 for 16 bits
-		errCheck(err)
-
 		sBytes := convertInt16ToByte(framesPerBuffer)
 		err = wscon.WriteMessage(websocket.BinaryMessage, sBytes)
 		errCheck(err)
+
 	}
 	fmt.Println("\nDONE\n")
 	errCheck(stream.Stop())
 
 	wg.Wait()
 
-
-	waveWriter.Close()
 	stream.Close()
 	portaudio.Terminate()
 	//fmt.Println("Play", audioFileName, "with a audio player to hear the result.")
