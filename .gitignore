@@ -1,3 +1,4 @@
 config/*
 go-speech-server
-
+.idea/
+*.wav

@@ -52,9 +52,6 @@ func ReceiveFile(w http.ResponseWriter, req *http.Request) {
 	// Stat audio
 	ii := header.Size
 
-	if err != nil {
-		astilog.Fatal(errors.Wrapf(err, "stating %s failed", *audio))
-	}
 	// Create reader
 	r, err := wav.NewReader(tmpF, ii)
 	if err != nil {
@@ -78,13 +75,8 @@ func ReceiveFile(w http.ResponseWriter, req *http.Request) {
 
 	output := ""
 	// Speech to text
-	if *extended {
-		metadata := M.SpeechToTextWithMetadata(d, uint(len(d)), 44100)
-		defer metadata.Close()
-		output = metadataToString(metadata)
-	} else {
-		output = M.SpeechToText(d, uint(len(d)), 44100)
-	}
+
+	output = M.SpeechToText(d, uint(len(d)), 44100)
 
 	astilog.Infof("Text: %s", output)
 
